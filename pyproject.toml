@@ -1,0 +1,42 @@
+[project]
+name = "icrt"
+version = "0.1.0"
+
+dependencies=[
+    "Pillow",
+    "opencv-python",
+    "tqdm",
+    "tensorboard",
+    "diffusers",
+    "scipy",
+    "timm",
+    "matplotlib",
+    "tyro",
+    "loralib",
+    "h5py",
+    "wandb",
+    "mediapy",
+    "kinpy",
+    "imgviz",
+    "torch>=2.8.0",
+    "torchaudio",
+    "torchvision",
+    "ffmpeg>=1.4",
+    "ipykernel>=6.31.0",
+    "termcolor>=3.3.0",
+    "robosuite==1.4.0",
+]
+
+requires-python = ">=3.10,<3.11"
+[tool.setuptools.packages.find]
+include = ["icrt"]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+torchaudio = { index = "pytorch-cu128" }
