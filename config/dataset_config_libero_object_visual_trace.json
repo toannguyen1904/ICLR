@@ -1,0 +1,21 @@
+{
+    "dataset_paths": [
+        "/data/tientoan/LIBERO/libero_object/pick_up_the_ketchup_and_place_it_in_the_basket_demo.hdf5",
+        "/data/tientoan/LIBERO/libero_object/pick_up_the_bbq_sauce_and_place_it_in_the_basket_demo.hdf5",
+        "/data/tientoan/LIBERO/libero_object/pick_up_the_milk_and_place_it_in_the_basket_demo.hdf5",
+        "/data/tientoan/LIBERO/libero_object/pick_up_the_butter_and_place_it_in_the_basket_demo.hdf5",
+        "/data/tientoan/LIBERO/libero_object/pick_up_the_orange_juice_and_place_it_in_the_basket_demo.hdf5",
+        "/data/tientoan/LIBERO/libero_object/pick_up_the_chocolate_pudding_and_place_it_in_the_basket_demo.hdf5",
+        "/data/tientoan/LIBERO/libero_object/pick_up_the_cream_cheese_and_place_it_in_the_basket_demo.hdf5"
+    ],
+    "val_verbs": [
+        "pick_up_the_tomato_sauce_and_place_it_in_the_basket",
+        "pick_up_the_salad_dressing_and_place_it_in_the_basket",
+        "pick_up_the_alphabet_soup_and_place_it_in_the_basket"
+    ],
+    "visual_trace_path": "/data/tientoan/LIBERO/libero_object/visual_trace_im256.pkl",
+    "epi_len_mapping_json": "config/data_config_libero/libero_object/epi_len_mapping_json.json",
+    "verb_to_episode": "config/data_config_libero/libero_object/verb_to_episode.json",
+    "task_grouping" : "config/data_config_libero/libero_object/task_grouping.json",
+    "train_split": 0.95
+}

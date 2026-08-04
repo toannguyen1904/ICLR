@@ -20,10 +20,10 @@ Verify the GPU is visible:
 uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 ```
 
-## Preparing LIBERO datase
+## Preparing LIBERO datasets
 *Make sure you added the LIBERO submodule before running following steps*
 
-### 1. LIBERO Configuration
+### 1. LIBERO Configuration and Installation
 
 First you should set the LIBERO default path and config file path to your current folder for convenient. Make the following edits in the [LIBERO/libero/libero/\_\_init__.py](LIBERO/libero/libero/__init__.py):
 ```python
@@ -47,55 +47,71 @@ datasets: your_desired_LIBERO_datasets_location
 init_states: your_ICLR_folder/LIBERO/libero/libero/init_files
 ```
 
+The upstream LIBERO repo is missing a couple of `__init__.py` files (a known, still-open bug, see
+[PR #15](https://github.com/Lifelong-Robot-Learning/LIBERO/pull/15)), which causes `setup.py`'s
+`find_packages()` to silently discover zero packages, so `import libero` fails even after a
+successful-looking install. Add them before installing:
+```bash
+touch LIBERO/libero/__init__.py
+touch LIBERO/libero/lifelong/models/modules/__init__.py
+```
+
+To install the libero package, run:
+```bash
+uv pip install -e ./LIBERO
+```
+
 ### 2. Download LIBERO-Object and LIBERO-90
 Run following commands to download two LIBERO datasets used in ICLR
 ```bash
 cd LIBERO
 # LIBERO-Object
 python benchmark_scripts/download_libero_datasets.py --datasets libero_object
+
 # LIBERO-90. Here we download LIBERO-100 since LIBERO-90 is a part of LIBERO-100
 python benchmark_scripts/download_libero_datasets.py --datasets libero_100
 ```
 
 After downloading successfully, you should see the confirmation that LIBERO-Object, LIBERO-90, and LIBERO-10 are complete. However, as mentioned earlier, we don't need LIBERO-10, so you can just go delete it.
 
-### 3. Preprocessing LIBERO datasets
-In this step, we regenerate the LIBERO datasets to remove no-op actions and unsuccessful episodes.
+### 3. Preprocess LIBERO datasets
+In this step, we regenerate the LIBERO datasets to remove no-op actions and unsuccessful episodes. Basically, we follow OpenVLA's preprocessing.
 ```bash
 cd ../tools
+# LIBERO-Object
+python3 regenerate_libero_dataset.py --libero_task_suite libero_object --libero_raw_data_dir path/to/libero_object --libero_target_dir .../libero_object_new
 
+# LIBERO-90
+python3 regenerate_libero_dataset.py --libero_task_suite libero_90 --libero_raw_data_dir path/to/libero/90 --libero_target_dir .../libero_90_new
 ```
 
-## Checkpoints
-We host the checkpoints on [🤗HuggingFace](https://huggingface.co/mlfu7/ICRT). Please follow the following instructions to download them.
-```bash 
-# install git-lfs
-sudo apt install git-lfs
-git lfs install
-# cloning checkpoints
-git clone git@hf.co:mlfu7/ICRT checkpoints
+After this, please delete the original `libero_object` and `libero_90` data folders and rename `libero_object_new` to `libero_object` and `libero_90_new` to `libero_90`.
+
+### 4. Generate visual traces for LIBERO datasets
+Note that for LIBERO, we don't use Molmo2 to generate visual traces, instead, we infer the gripper position via the robot’s proprioceptive state and the known camera parameters. In particular, run these scritps:
+```bash
+# LIBERO-Object
+python iclr/data/visual_trace_process_libero.py --benchmark libero_object
+
+# LIBERO-90
+python iclr/data/visual_trace_process_libero.py --benchmark libero_90
 ```
 
-## Model Training 
+After this, you should see `visual_trace_im256.pkl` files in the two dataset folders.
 
-Please refer to [TRAIN.md](TRAIN.md) for training the model.
+### 5. Generate Metadata for LIBERO datasets
+Run following scripts to generate metadata for LIBERO datasets (epiode grouping, lengths, etc.)
+```bash
+# Make folders for LIBERO metadata
+mkdir -p config/data_config_libero/libero_object
+mkdir -p config/data_config_libero/libero_90
 
-## Model Inference
+# LIBERO-Object metadata
+python3 tools/gen_libero_metadata.py --libero_path path_to_your_LIBERO_data_folder --task_suite libero_object --root_path path_to_ICLR_folder
 
-Please look at [inference.ipynb](tools/inference.ipynb) for examples on inferencing ICRT.
-
-## License
-This project is under the Apache 2.0 license. See [LICENSE](LICENSE.txt) for details.
-
-## Citation 
-Please give us a star 🌟 on Github to support us!
-
-Please cite our work if you find our work inspiring or use our code in your work:
+# LIBERO-Object metadata
+python3 tools/gen_libero_metadata.py --libero_path path_to_your_LIBERO_data_folder --task_suite libero_90 --root_path path_to_ICLR_folder
 ```
-@article{fu2024icrt,
-    title={In-Context Imitation Learning via Next-Token Prediction}, 
-    author={Letian Fu and Huang Huang and Gaurav Datta and Lawrence Yunliang Chen and William Chung-Ho Panitch and Fangchen Liu and Hui Li and Ken Goldberg},
-    journal={arXiv preprint arXiv:2408.15980},
-    year={2024}
-}
-```
+
+### 6. Data Configuration for ICLR
+Change `/data/tientoan/LIBERO` to your folder that stores the LIBERO datasets in [config/dataset_config_libero_object_visual_trace.json](config/dataset_config_libero_object_visual_trace.json) and [config/dataset_config_libero_90_visual_trace.json](config/dataset_config_libero_90_visual_trace.json)
