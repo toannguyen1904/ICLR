@@ -10,9 +10,11 @@ This repo contains the unofficial implementation for *ICLR: In-Context Imitation
 git clone --recurse-submodules https://github.com/toannguyen1904/ICLR.git
 cd ICLR
 
-# create the environment and install packaged with uv
+# create the environment and install packages with uv
 uv python pin 3.10
 uv sync
+# Install iclr package
+uv pip install -e .
 ```
 
 Verify the GPU is visible:
@@ -20,7 +22,13 @@ Verify the GPU is visible:
 uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 ```
 
-## Preparing LIBERO datasets
+## Download the Pretrained Vision Encoder
+You can download the pretrained vision encoder (originally provided by [Fu et al. 2025](https://icrt.dev/)) by running:
+```bash
+hf download nanidafvck/ICLR_vision_encoder --local-dir ./vision_encoder/
+```
+
+## Preparing LIBERO Datasets
 *Make sure you added the LIBERO submodule before running following steps*
 
 ### 1. LIBERO Configuration and Installation
@@ -35,7 +43,7 @@ config_file = os.path.join(libero_config_path, "libero_config.yaml")
 
 After that, create the LIBERO config file with the same name as in your edits:
 ```bash
-touch ~/libero_config.yaml
+touch libero_config.yaml
 ```
 
 Then you can edit your config file:
@@ -74,7 +82,7 @@ python benchmark_scripts/download_libero_datasets.py --datasets libero_100
 
 After downloading successfully, you should see the confirmation that LIBERO-Object, LIBERO-90, and LIBERO-10 are complete. However, as mentioned earlier, we don't need LIBERO-10, so you can just go delete it.
 
-### 3. Preprocess LIBERO datasets
+### 3. Preprocess LIBERO Datasets
 In this step, we regenerate the LIBERO datasets to remove no-op actions and unsuccessful episodes. Basically, we follow OpenVLA's preprocessing.
 ```bash
 cd ../tools
@@ -87,7 +95,7 @@ python3 regenerate_libero_dataset.py --libero_task_suite libero_90 --libero_raw_
 
 After this, please delete the original `libero_object` and `libero_90` data folders and rename `libero_object_new` to `libero_object` and `libero_90_new` to `libero_90`.
 
-### 4. Generate visual traces for LIBERO datasets
+### 4. Generate Visual Traces for LIBERO Datasets
 Note that for LIBERO, we don't use Molmo2 to generate visual traces, instead, we infer the gripper position via the robot’s proprioceptive state and the known camera parameters. In particular, run these scritps:
 ```bash
 # LIBERO-Object
