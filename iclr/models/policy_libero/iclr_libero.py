@@ -12,8 +12,8 @@ from timm.layers import Mlp
 from diffusers import DDIMScheduler, DDPMScheduler
 
 from typing import Union, Literal, Optional
-from ..policy.llama import Transformer, ModelArgs
-from ..policy.pred_head import MLPHead, GMMHead, DiffusionHead
+from .llama import Transformer, ModelArgs
+from .pred_head import MLPHead, GMMHead, DiffusionHead
 from iclr.models.backbones.encoders import VisionEncoder, VisionEncoderCNN, AttentionPool, MultiKVAttentionPool
 from iclr.models.losses import losses
 from iclr.models.util.random_util import random_flip_zeros
