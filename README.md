@@ -133,6 +133,10 @@ If you find our work useful for your research, please cite:
 }
 ```
 
+## 🙏 Thanks
+
+We thank [ICRT](https://icrt.dev/) and [MolmoAct](https://allenai.org/blog/molmoact) for providing excellent codebases that facilitate this research.
+
 ## 📬 Contact
 
 For questions, please reach out to [tientoan@usc.edu](mailto:tientoan@usc.edu).
