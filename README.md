@@ -1,10 +1,16 @@
 # ICLR: In-Context Imitation Learning with Visual Reasoning
 
+[[Website]](https://toannguyen1904.github.io/ICLR/) [[Paper]](https://arxiv.org/abs/2603.07530)
 
-This repo contains the unofficial implementation for *ICLR: In-Context Imitation Learning with Visual Reasoning*, which is accepted to the IROS 2026 conference.
+This repo contains the implementation for *ICLR: In-Context Imitation Learning with Visual Reasoning*, which is accepted to the IROS 2026 conference.
 
+<p align="center">
+  <img src="assets/ICLR.png" alt="ICLR overview" width="90%">
+</p>
 
-## Setup
+> **⚠️ This repo is still being updated frequently — stay tuned.** The current version supports training and inference on the LIBERO benchmark.
+
+## 🛠️ Setup
 ```bash
 # download repo
 git clone --recurse-submodules https://github.com/toannguyen1904/ICLR.git
@@ -13,60 +19,44 @@ cd ICLR
 # create the environment and install packages with uv
 uv python pin 3.10
 uv sync
-# Install iclr package
-uv pip install -e .
 ```
+`uv sync` installs the `iclr` package itself and the `libero` package (from the `LIBERO` submodule) as editable dependencies — no separate `pip install -e` steps needed.
 
 Verify the GPU is visible:
 ```bash
 uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 ```
 
-## Download the Pretrained Vision Encoder
+## 👁️ Download the Pretrained Vision Encoder
 You can download the pretrained vision encoder (originally provided by [Fu et al. 2025](https://icrt.dev/)) by running:
 ```bash
 hf download nanidafvck/ICLR_vision_encoder --local-dir ./vision_encoder/
 ```
 
-## Preparing LIBERO Datasets
-*Make sure you added the LIBERO submodule before running following steps*
+## 🗂️ Preparing LIBERO Datasets
+*Make sure you added the LIBERO submodule (`git submodule update --init`) and ran `uv sync` before following steps*
 
-### 1. LIBERO Configuration and Installation
+### 1. LIBERO Configuration
 
-First you should set the LIBERO default path and config file path to your current folder for convenient. Make the following edits in the [LIBERO/libero/libero/\_\_init__.py](LIBERO/libero/libero/__init__.py):
-```python
-libero_config_path = os.environ.get(
-    "LIBERO_CONFIG_PATH", os.path.expanduser("your_ICLR_folder")
-)
-config_file = os.path.join(libero_config_path, "libero_config.yaml")
-```
+We use our own fork of LIBERO ([toannguyen1904/LIBERO](https://github.com/toannguyen1904/LIBERO)) as the submodule instead of upstream, since it already includes a few fixes needed for this repo:
+- the `__init__.py` files upstream is missing (a known, still-open bug, see [PR #15](https://github.com/Lifelong-Robot-Learning/LIBERO/pull/15)), which otherwise causes `setup.py`'s `find_packages()` to silently discover zero packages
+- `weights_only=False` on its `torch.load` calls, required since PyTorch 2.6 flipped that default and LIBERO's init-state/checkpoint files aren't tensor-only pickles
+- a default config path of `~/ICLR/libero_config.yaml`
 
-After that, create the LIBERO config file with the same name as in your edits:
+None of that needs manual setup anymore — `uv sync` installs `libero` as an editable dependency automatically. If you cloned this repo somewhere other than `~/ICLR`, set the `LIBERO_CONFIG_PATH` environment variable to your repo root instead of relying on the default.
+
+Create your local config file (this is machine-specific and not checked into the repo):
 ```bash
 touch libero_config.yaml
 ```
 
-Then you can edit your config file:
+Then edit it:
 ```yaml
 assets: your_ICLR_folder/LIBERO/libero/libero/assets
 bddl_files: your_ICLR_folder/LIBERO/libero/libero/bddl_files
 benchmark_root: your_ICLR_folder/LIBERO/libero/libero
 datasets: your_desired_LIBERO_datasets_location
 init_states: your_ICLR_folder/LIBERO/libero/libero/init_files
-```
-
-The upstream LIBERO repo is missing a couple of `__init__.py` files (a known, still-open bug, see
-[PR #15](https://github.com/Lifelong-Robot-Learning/LIBERO/pull/15)), which causes `setup.py`'s
-`find_packages()` to silently discover zero packages, so `import libero` fails even after a
-successful-looking install. Add them before installing:
-```bash
-touch LIBERO/libero/__init__.py
-touch LIBERO/libero/lifelong/models/modules/__init__.py
-```
-
-To install the libero package, run:
-```bash
-uv pip install -e ./LIBERO
 ```
 
 ### 2. Download LIBERO-Object and LIBERO-90
@@ -123,3 +113,26 @@ python3 tools/gen_libero_metadata.py --libero_path path_to_your_LIBERO_data_fold
 
 ### 6. Data Configuration for ICLR
 Change `/data/tientoan/LIBERO` to your folder that stores the LIBERO datasets in [config/dataset_config_libero_object_visual_trace.json](config/dataset_config_libero_object_visual_trace.json) and [config/dataset_config_libero_90_visual_trace.json](config/dataset_config_libero_90_visual_trace.json)
+
+## 🚀 Training
+Refer to [train_iclr_libero_object.sh](train_iclr_libero_object.sh) for training on LIBERO-Object dataset. Before training, remember to change names of WanDB entity and project in [scripts_libero/train_libero_visual_trace.py:134](scripts_libero/train_libero_visual_trace.py#134).
+
+## 🎯 Inference
+Refer to the notebook for inference on LIBERO-Object at [notebooks/inference_iclr_libero_object.ipynb](notebooks/inference_iclr_libero_object.ipynb)
+
+
+## 📖 Citation
+
+If you find our work useful for your research, please cite:
+```
+@inproceedings{nguyen2026iclr,
+      title={ICLR: In-Context Imitation Learning with Visual Reasoning},
+      author={Nguyen, Toan and Yuan, Weiduo and Wei, Songlin and Li, Hui and Seita, Daniel and Wang, Yue},
+      booktitle = IROS,
+      year      = 2026
+}
+```
+
+## 📬 Contact
+
+For questions, please reach out to [tientoan@usc.edu](mailto:tientoan@usc.edu).

@@ -131,7 +131,7 @@ def main(args : ExperimentConfig):
 
     # Start a wandb run with `sync_tensorboard=True`
     if global_rank == 0 and args.logging_cfg.log_name is not None:
-        wandb.init(entity="tientoan-usc", project="ICoTIL", config=args, name=args.logging_cfg.log_name, sync_tensorboard=True)
+        wandb.init(entity="tientoan-usc", project="ICLR", config=args, name=args.logging_cfg.log_name, sync_tensorboard=True)
 
     # SummaryWrite, only the master process writes to the log directory
     if global_rank == 0 and args.logging_cfg.log_dir is not None:

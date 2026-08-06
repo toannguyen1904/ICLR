@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "iclr"
 version = "0.1.0"
@@ -36,6 +40,8 @@ dependencies=[
     "thop>=0.1.1.post2209072238",
     "mujoco<3.10",
     "transforms3d>=0.4.2",
+    "jupyter>=1.1.1",
+    "libero",
 ]
 
 requires-python = ">=3.10,<3.11"
@@ -51,3 +57,4 @@ explicit = true
 torch = { index = "pytorch-cu128" }
 torchvision = { index = "pytorch-cu128" }
 torchaudio = { index = "pytorch-cu128" }
+libero = { path = "LIBERO", editable = true }

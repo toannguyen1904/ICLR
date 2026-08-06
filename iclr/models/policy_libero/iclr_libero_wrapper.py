@@ -11,7 +11,7 @@ import PIL
 
 from iclr.util.args import ExperimentConfig
 import iclr.util.misc as misc
-from iclr.util.model_constructor_libero import model_constructor_libero_visual_trace_mma
+from iclr.util.model_constructor_libero import model_constructor_libero_visual_trace
 from iclr.data.utils import rot_6d_to_euler, quat_to_rot_6d, euler_to_rot_6d
 from iclr.data.utils import convert_delta_action
 
@@ -61,7 +61,7 @@ class ICLRLiberoWrapper(nn.Module):
         else:
             print("Vision encoder is loaded from the model checkpoint! ")
 
-        model = model_constructor_libero_visual_trace_mma(
+        model = model_constructor_libero_visual_trace(
             model_config=args.model_cfg, 
             shared_config=args.shared_cfg,
             train=False,
