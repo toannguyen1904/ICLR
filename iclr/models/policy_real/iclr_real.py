@@ -19,13 +19,13 @@ from iclr.models.losses import losses
 from iclr.models.util.random_util import random_flip_zeros
 from iclr.data.utils import convert_abs_action, convert_delta_action, scale_action, unscale_action, load_json
 
-class ICLR_Libero(nn.Module):
+class ICLR_Real(nn.Module):
     """ 
     In context robot learning with transformer intialized by llama
     """
     # parameters that are not used in upstream code
     attn_latent_len : int = 1
-    sa_loss_fn = "l1" # state action loss
+    sa_loss_fn = "l1" # state, visual_trace, action loss, currently using l1 loss
     # eos_loss_fn = "bce_with_logits"
     loss_w_proprio : float = 1.
     # loss_w_eos : float = 1.
@@ -52,7 +52,7 @@ class ICLR_Libero(nn.Module):
         adapter_mlp_ratio : int = 4,
         adapter_num_heads : int = 8,
         multikv_attn_pool : bool = False,
-        loss_w_action : float = 1.,
+        loss_w_action : float = 1., 
         loss_w_visual_trace : float = 0.3,  # 0.3 is the weight for loss of visual_trace, this is temporary, revisit later
         lora_rank : int = 4,
         camera_pos_emb : bool = False,
@@ -62,7 +62,7 @@ class ICLR_Libero(nn.Module):
         rot_6d : bool = False,
         train : bool = True, 
         max_batch_size : int = 2, 
-        num_pred_steps : int = 1,
+        num_pred_steps : int = 1, 
         num_visual_trace_points : int = 5,
         pred_action_only : bool = False,
         remove_proprio : bool = False,
@@ -81,6 +81,7 @@ class ICLR_Libero(nn.Module):
     ):
         super().__init__()
         self.random_mask_visual_trace = random_mask_visual_trace
+
         # define language model parameters
         self.scratch_llama_config = scratch_llama_config    # config/model_config/custom_transformer.json
         if self.scratch_llama_config is not None: 
@@ -94,7 +95,7 @@ class ICLR_Libero(nn.Module):
         # args.seq_length is the number (s,a) pairs, so needs to multiply by 2
         max_batch_size = max_batch_size # seems to be 2 from shared_config and TRAIN.md
         model_args = ModelArgs(
-            max_seq_len=seq_length*3,   # 512 x 3 = 1536, tripling because we have (s,a,v)
+            max_seq_len=seq_length*3,   # 512 x 3 = 1536, tripling because we have (s,a,v) pairs
             max_batch_size=max_batch_size, 
             w_bias=bias_lora, 
             w_lora=bias_lora, 
@@ -123,7 +124,7 @@ class ICLR_Libero(nn.Module):
             nn.init.trunc_normal_(self.iclr_camera_pos_emb, std=0.2)
 
         # proprioception encoder
-        self.proprio_dim = proprio_dim  # 11, since we are using 6d rotation representation, and there are 2 values for the gripper
+        self.proprio_dim = proprio_dim  # 10, since we are using 6d rotation representation
 
         self.remove_proprio = remove_proprio    # False
         # print(self.proprio_dim)
@@ -166,14 +167,13 @@ class ICLR_Libero(nn.Module):
         self.iclr_action_encoder = Mlp(in_features=self.action_dim, out_features=self.latent_dim)
 
         self.num_visual_trace_points = num_visual_trace_points    # 5
-        # VISUAL_TRACE: temporary visual trace encoder
         self.iclr_visual_trace_encoder = nn.Linear(self.num_visual_trace_points * 2, self.latent_dim)
 
         self.rot_6d = rot_6d    # True
         self.use_delta_action = use_delta_action    # True
 
-        # aggregate state and action
-        self.latent_len = self.attn_latent_len + 1 + 1  # because we have (s,a,v)
+        # aggregate state, visual_trace and action
+        self.latent_len = self.attn_latent_len + 1 + 1  # because we have (s,a,v) triples
 
         # positional embedding for combination of (f_v and f_p) and action (optional, defined by flag)
         self.modality_pos_emb = modality_pos_emb    # False
@@ -319,7 +319,7 @@ class ICLR_Libero(nn.Module):
                 output_dim=self.proprio_dim * self.num_pred_steps,
                 loss_fn=losses[self.sa_loss_fn](reduction="none"),
             )
-
+        
         # VISUAL_TRACE: decoder for visual trace
         self.iclr_visual_trace_decoder = _action_head_constructor(
             head_type=self.decoder_pred_head,
@@ -338,7 +338,7 @@ class ICLR_Libero(nn.Module):
         )
 
     def state_dict(self, destination=None, prefix='', keep_vars=False):
-        state_dict = super(ICLR_Libero, self).state_dict(destination, prefix, keep_vars) 
+        state_dict = super(ICLR_Real, self).state_dict(destination, prefix, keep_vars) 
         trainable_params = self.get_trainable_params(self.phase) # trainable_params points to different tensor as state_dict
         new_state_dict = OrderedDict()
         for k in trainable_params:
@@ -395,17 +395,16 @@ class ICLR_Libero(nn.Module):
         
         Parameters:
         observation: (batch size, sequence_length, num_cameras, 3, height, width)
-        proprio: (batch size, sequence_length, 11)
+        proprio: (batch size, sequence_length, 10)
         action: (batch size, sequence_length, 10)
-        visual_trace: (batch size, sequence_length, num_visual_trace_points * 2)
-
+        visual_trace: (batch size, sequence_length, 10)
         Returns:
         torch.Tensor: The preprocessed data, a tensor of shape (B, T * (latent_len+1), self.latent_dim).
         """
         # proprio processing
         if not self.remove_proprio:
             f_prop = self.iclr_proprio_encoder(proprio) # B, T, self.vision_out_dim
-
+        
         f_v = self.iclr_visual_trace_encoder(visual_trace) # B, T, self.latent_dim
         f_v = f_v[:, :, None, :] # B, T, 1, self.latent_dim
         
@@ -522,9 +521,9 @@ class ICLR_Libero(nn.Module):
         return loss: torch.tensor 
         """
         observation = sequences['observation']  # (batch_size, seq_length, num_cameras, 3, 224, 224)
-        proprio = sequences['proprio']  # (batch_size, seq_length, num_pred_steps, 11)
+        proprio = sequences['proprio']  # (batch_size, seq_length, num_pred_steps, 10)
         action = sequences['action']  # (batch_size, seq_length, num_pred_steps, 11)
-        visual_trace = sequences['visual_trace']  # (batch_size, seq_length, num_pred_steps, num_visual_trace_points * 2)
+        visual_trace = sequences['visual_trace']  # (batch_size, seq_length, num_visual_trace_points * 2)
         prompt_mask = sequences['prompt_mask']  # (batch_size, seq_length,)
         weight_mask = sequences['weight_mask']  # (batch_size, seq_length,)
 
@@ -537,7 +536,7 @@ class ICLR_Libero(nn.Module):
     
         # the inputs are only single step
         # print(proprio.shape)
-        proprio_in = proprio[:, :, 0] # batch_size, seq_length, num_pred_steps, 11 -> batch_size, seq_length, 11
+        proprio_in = proprio[:, :, 0] # batch_size, seq_length, num_pred_steps, 10 -> batch_size, seq_length, 10
         action_in = action[:, :, 0] # batch_size, seq_length, num_pred_steps, 10 -> batch_size, seq_length, 10
         visual_trace_in = visual_trace[:, :, 0] # batch_size, seq_length, num_pred_steps, num_visual_trace_points * 2 -> batch_size, seq_length, num_visual_trace_points * 2
 
@@ -546,7 +545,7 @@ class ICLR_Libero(nn.Module):
             visual_trace_mask = random_flip_zeros(visual_trace_mask)    # random flip except the prompt visual trace tokens
             visual_trace_mask = visual_trace_mask.to(visual_trace_in.device)
             visual_trace_in = visual_trace_in * visual_trace_mask.unsqueeze(-1)
-        
+
         # preprocessing observations, proprio and actions
         # print(proprio_in.shape)
         f_sva = self.preprocessing(observation, proprio_in, action_in, visual_trace_in)   # B, T * (latent_len+1+1), self.latent_dim; T * (latent_len+1+1) is now 512 * (1 + 1 + 1)
@@ -570,9 +569,9 @@ class ICLR_Libero(nn.Module):
         # parse output into state and action 
         out = out.view(B, T, -1, self.latent_dim) # B, T, latent_len+1+1, self.latent_dim
 
-        # predicting visual_trace, action, proprio, and eos; This needs to be revisited later
+        # predicting action, proprio, and eos
         out_v = out[:, :, :1, :].view(B*T, self.latent_dim)
-        out_a = out[:, :, 1:-1, :].view(B*T, (self.latent_len - 2) * self.latent_dim)   # self.latent_len is 3
+        out_a = out[:, :, 1:-1, :].view(B*T, (self.latent_len - 2) * self.latent_dim)   # self.latent_len is 3 
         out_s = out[:, :-1, -1, :].reshape(B*(T-1), self.latent_dim)
 
         if self.kl_div_loss:    # False
@@ -626,10 +625,9 @@ class ICLR_Libero(nn.Module):
             action_loss = action_loss * weights_for_steps.view(B*T,1)
             visual_trace_loss = visual_trace_loss * weights_for_steps.view(B*T,1)
         
-        if self.no_prompt_loss:
+        if self.no_prompt_loss: # False
             state_loss = state_loss.sum()/(prompt_mask[:,:-1].sum() * self.proprio_dim * self.num_pred_steps + 1e-6)
             action_loss = action_loss.sum()/(prompt_mask.sum() * self.action_dim * self.num_pred_steps + 1e-6)
-            # 2 instead of 32 because we are predicting just a single step visual trace
             visual_trace_loss = visual_trace_loss.sum()/(prompt_mask.sum() * 2 * self.num_visual_trace_points + 1e-6)
         else:
             state_loss = state_loss.mean()
@@ -739,7 +737,7 @@ class ICLR_Libero(nn.Module):
             out_a_latent = out[:, -1, 1:-1, :].view(B, (self.latent_len - 1 - 1) * self.latent_dim) # B, latent_len, self.latent_dim
             out_a = self.iclr_action_decoder.pred(out_a_latent).view(B, self.num_pred_steps, self.action_dim)
             
-            if not self.pred_action_only:   # self.pred_action_only is True, might need to be revisited later
+            if not self.pred_action_only:
                 # separate eos and action 
                 out_eos = out_a[:, :, -1] # B, self.num_pred_steps
                 out_action = out_a[:, :, :-1] # B, self.num_pred_steps, action_dim
@@ -762,7 +760,7 @@ class ICLR_Libero(nn.Module):
             out_action = out_action.float()
             if out_eos is not None:
                 out_eos = out_eos.float()
-            
+                        
             visual_trace_latent = out[:, -1, :1, :].view(B, (self.latent_len - 1 - 1) * self.latent_dim).float()
             # the last dimension is 2 instead of self.num_pred_steps * 2 because we are predicting just a single step visual trace
             out_visual_trace = self.iclr_visual_trace_decoder.pred(visual_trace_latent).view(B, self.num_visual_trace_points, 2).float()
@@ -1000,6 +998,12 @@ class ICLR_Libero(nn.Module):
             #!!!!!!!!!!!!!!!!!!!!binarize the gripper action
             print("raw_gripper_action", action[:,-1])
             action[:,-1] = action[:,-1] > 0.5
+            
+        #delta action
+        if self.use_delta_action:
+            delta_action = action.clone()
+            action = convert_abs_action(delta_action[None].cpu().numpy(),observation['proprio'].cpu().numpy())
+            action = torch.tensor(action,device=delta_action.device).squeeze().float()
 
         if abs_gripper_control:
             gripper_action = action[0, -1]
@@ -1020,18 +1024,27 @@ class ICLR_Libero(nn.Module):
             exp_weights = exp_weights / exp_weights.sum()
             action = (actions_current_timestep * exp_weights[:, None]).sum(dim=0)
 
-        last_action = action.clone()
+        #convert to delta action
+        if self.use_delta_action:
+            last_action = convert_delta_action(action[None,None].cpu().numpy(),observation['proprio'].cpu().numpy())
+            last_action = torch.tensor(last_action,device=action.device).squeeze().float()
+        else:
+            last_action = action.clone()
 
         self.last_action = torch.cat([last_action.clone().unsqueeze(0).unsqueeze(0), torch.zeros((1, 1, 1), device=last_action.device)], dim=-1)
 
         if self.first_obs:
             self.first_obs = False
         else:
-            self.start_pos += 3 # +3 instead of +2 because we are predicting visual trace
+            self.start_pos += 3
         
         if abs_gripper_control:
             action[-1] = gripper_action
+
         
+        return action, visual_trace_sequence
+
+            
         return action, visual_trace_sequence
 
     # Now, we are writing a separate function for the case of not using teacher forcing.
@@ -1058,6 +1071,12 @@ class ICLR_Libero(nn.Module):
             print("raw_gripper_action", action[:,-1])
             action[:,-1] = action[:,-1] > 0.5
 
+        #delta action
+        if self.use_delta_action:
+            delta_action = action.clone()
+            action = convert_abs_action(delta_action[None].cpu().numpy(),observation['proprio'].cpu().numpy())
+            action = torch.tensor(action,device=delta_action.device).squeeze().float()
+
         if abs_gripper_control:
             gripper_action = action[0, -1]
 
@@ -1077,7 +1096,12 @@ class ICLR_Libero(nn.Module):
             exp_weights = exp_weights / exp_weights.sum()
             action = (actions_current_timestep * exp_weights[:, None]).sum(dim=0)
 
-        last_action = action.clone()
+        #convert to delta action
+        if self.use_delta_action:
+            last_action = convert_delta_action(action[None,None].cpu().numpy(),observation['proprio'].cpu().numpy())
+            last_action = torch.tensor(last_action,device=action.device).squeeze().float()
+        else:
+            last_action = action.clone()
 
         self.last_action = torch.cat([last_action.clone().unsqueeze(0).unsqueeze(0), torch.zeros((1, 1, 1), device=last_action.device)], dim=-1)
         self.last_visual_trace = visual_trace_sequence.clone().unsqueeze(0)
@@ -1090,62 +1114,3 @@ class ICLR_Libero(nn.Module):
             action[-1] = gripper_action
         
         return action, visual_trace_sequence
-
-    @torch.inference_mode()
-    def get_batch_action_eval_no_teacher_forcing(self, observation, abs_gripper_control=False, use_temporal=True, binary_gripper=False, pred_visual_trace=True):
-        # if abs_gripper_control, then the current model prediction is used instead of the averaged gripper action
-        # observation is a dictionary of "observation", "proprio", visual_trace, "action"
-        # visual_trace and action are both None.
-        B = observation["observation"].shape[0]
-        tmp = observation.copy()    # shallow
-        if self.last_observation is not None:   # in the first loop, self.last_observation is None, due to the reset function
-            for k in observation:   # k is "observation", "proprio", "action"
-                if self.last_observation[k] is not None:
-                    observation[k] = torch.cat([self.last_observation[k], observation[k]], dim=1)   # concatenate the last observation and the current observation, make it 2 but only from the second loop
-        self.last_observation = tmp
-
-        observation["visual_trace"] = self.last_visual_trace
-        observation["action"] = self.last_action
-
-        with torch.amp.autocast('cuda', dtype=torch.bfloat16):
-            action_sequence, eos_sequence, visual_trace_sequence = self.forward_inference_no_teacher_forcing(observation, self.start_pos, pred_visual_trace)
-        actions = action_sequence
-        if binary_gripper:
-            #!!!!!!!!!!!!!!!!!!!!binarize the gripper action
-            print("raw_gripper_action", actions[:, :, -1])
-            actions[:, :, -1] = actions[:, :, -1] > 0.5
-
-        if abs_gripper_control:
-            gripper_action = actions[:, 0, -1]   # (B,)
-
-        actions = actions.permute(1, 0, 2)  # (T, B, action_dim)
-        
-        if not use_temporal:
-            if len(self.action_queue) == 0: 
-                self.action_queue = deque(actions[:self.action_exec_horizon])
-            actions = self.action_queue.popleft()  # (B, action_dim)
-        else:
-            new_actions = deque(actions[:self.action_exec_horizon])
-            self.action_queue.append(new_actions)
-            actions_current_timestep = torch.empty((len(self.action_queue), actions.size(1), actions.size(2))).to(actions.device)
-            
-            k = 0.05
-            for i, q in enumerate(self.action_queue):
-                actions_current_timestep[i] = q.popleft()
-            exp_weights = torch.exp(k * torch.arange(actions_current_timestep.size(0))).to(actions.device)
-            exp_weights = exp_weights / exp_weights.sum()
-            actions = (actions_current_timestep * exp_weights[:, None, None]).sum(dim=0)
-
-        last_actions = actions.clone()
-
-        self.last_action = torch.cat([last_actions.clone().unsqueeze(1), torch.zeros((B, 1, 1), device=last_actions.device)], dim=-1)
-        self.last_visual_trace = visual_trace_sequence.clone().unsqueeze(1)
-        if self.first_obs:
-            self.first_obs = False
-        else:
-            self.start_pos += 3 # +3 instead of +2 because we are predicting visual trace
-        
-        if abs_gripper_control:
-            actions[:, -1] = gripper_action
-        
-        return actions, visual_trace_sequence

@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.distributions as D
 from timm.layers import Mlp
 from diffusers import DDIMScheduler
-from iclr.models.policy_libero.utils import ConditionedDiffusion
+from iclr.models.shared.utils import ConditionedDiffusion
 
 class PredHead(abc.ABC, nn.Module):
     """
