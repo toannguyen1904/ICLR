@@ -131,6 +131,8 @@ cd tools
 python merge_hdf5.py ./ICLR -o ./ICLR/iclr_real_data.hdf5 # replace ./ICLR with your actual downloaded data folder
 ```
 
+The visual trace data of the real data is already included in the HuggingFace dataset. The Molmo2-based generation code can be found at [iclr/data/visual_trace_process_real.py](iclr/data/visual_trace_process_real.py).
+
 Unlike LIBERO, the metadata for real data is already available under [config/data_config_real](config/data_config_real).
 
 To set the data configuration for the real data, change `/data/tientoan/ICL_Franka` to your real data folder in [config/dataset_config_real_visual_trace.json](config/dataset_config_real_visual_trace.json).
