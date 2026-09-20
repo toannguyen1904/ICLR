@@ -8,7 +8,7 @@ This repo contains the implementation for *ICLR: In-Context Imitation Learning w
   <img src="assets/ICLR.png" alt="ICLR overview" width="90%">
 </p>
 
-> **⚠️ This repo is still being updated frequently — stay tuned.** The current version supports training and inference on the LIBERO benchmark.
+<!-- > **⚠️ This repo is still being updated frequently — stay tuned.** The current version supports training and inference on the LIBERO benchmark. -->
 
 ## 🛠️ Setup
 ```bash
@@ -33,10 +33,11 @@ You can download the pretrained vision encoder (originally provided by [Fu et al
 hf download nanidafvck/ICLR_vision_encoder --local-dir ./vision_encoder/
 ```
 
-## 🗂️ Preparing LIBERO Datasets
+## 🕹️ LIBERO Simulation
+### 🗂️ Preparing LIBERO Datasets
 *Make sure you added the LIBERO submodule (`git submodule update --init`) and ran `uv sync` before following steps*
 
-### 1. LIBERO Configuration
+#### 1. LIBERO Configuration
 
 We use our own fork of LIBERO ([toannguyen1904/LIBERO](https://github.com/toannguyen1904/LIBERO)) as the submodule instead of upstream, since it already includes a few fixes needed for this repo:
 - the `__init__.py` files upstream is missing (a known, still-open bug, see [PR #15](https://github.com/Lifelong-Robot-Learning/LIBERO/pull/15)), which otherwise causes `setup.py`'s `find_packages()` to silently discover zero packages
@@ -59,7 +60,7 @@ datasets: your_desired_LIBERO_datasets_location
 init_states: your_ICLR_folder/LIBERO/libero/libero/init_files
 ```
 
-### 2. Download LIBERO-Object and LIBERO-90
+#### 2. Download LIBERO-Object and LIBERO-90
 Run following commands to download two LIBERO datasets used in ICLR
 ```bash
 cd LIBERO
@@ -72,7 +73,7 @@ python benchmark_scripts/download_libero_datasets.py --datasets libero_100
 
 After downloading successfully, you should see the confirmation that LIBERO-Object, LIBERO-90, and LIBERO-10 are complete. However, as mentioned earlier, we don't need LIBERO-10, so you can just go delete it.
 
-### 3. Preprocess LIBERO Datasets
+#### 3. Preprocess LIBERO Datasets
 In this step, we regenerate the LIBERO datasets to remove no-op actions and unsuccessful episodes. Basically, we follow OpenVLA's preprocessing.
 ```bash
 cd ../tools
@@ -85,7 +86,7 @@ python3 regenerate_libero_dataset.py --libero_task_suite libero_90 --libero_raw_
 
 After this, please delete the original `libero_object` and `libero_90` data folders and rename `libero_object_new` to `libero_object` and `libero_90_new` to `libero_90`.
 
-### 4. Generate Visual Traces for LIBERO Datasets
+#### 4. Generate Visual Traces for LIBERO Datasets
 Note that for LIBERO, we don't use Molmo2 to generate visual traces, instead, we infer the gripper position via the robot’s proprioceptive state and the known camera parameters. In particular, run these scritps:
 ```bash
 # LIBERO-Object
@@ -97,7 +98,7 @@ python iclr/data/visual_trace_process_libero.py --benchmark libero_90
 
 After this, you should see `visual_trace_im256.pkl` files in the two dataset folders.
 
-### 5. Generate Metadata for LIBERO datasets
+#### 5. Generate Metadata for LIBERO datasets
 Run following scripts to generate metadata for LIBERO datasets (epiode grouping, lengths, etc.)
 ```bash
 # Make folders for LIBERO metadata
@@ -111,14 +112,34 @@ python3 tools/gen_libero_metadata.py --libero_path path_to_your_LIBERO_data_fold
 python3 tools/gen_libero_metadata.py --libero_path path_to_your_LIBERO_data_folder --task_suite libero_90 --root_path path_to_ICLR_folder
 ```
 
-### 6. Data Configuration for ICLR
+#### 6. Data Configuration for ICLR
 Change `/data/tientoan/LIBERO` to your folder that stores the LIBERO datasets in [config/dataset_config_libero_object_visual_trace.json](config/dataset_config_libero_object_visual_trace.json) and [config/dataset_config_libero_90_visual_trace.json](config/dataset_config_libero_90_visual_trace.json)
 
-## 🚀 Training
+### 🚀 Training
 Refer to [train_iclr_libero_object.sh](train_iclr_libero_object.sh) for training on LIBERO-Object dataset. Before training, remember to change names of WanDB entity and project in [scripts_libero/train_libero_visual_trace.py:134](scripts_libero/train_libero_visual_trace.py#134).
 
-## 🎯 Inference
-Refer to the notebook for inference on LIBERO-Object at [notebooks/inference_iclr_libero_object.ipynb](notebooks/inference_iclr_libero_object.ipynb)
+### 🎯 Inference
+Refer to the notebook for inference on LIBERO-Object at [notebooks/inference_iclr_libero_object.ipynb](notebooks/inference_iclr_libero_object.ipynb).
+
+## 🦾 Real Robot
+### 🗂️ Preparing Real Data
+First, download the HuggingFace 🤗 data at [https://huggingface.co/datasets/nanidafvck/ICLR](https://huggingface.co/datasets/nanidafvck/ICLR).
+
+After downloading, run the following command to merge shard HDF5 files
+```bash
+cd tools
+python merge_hdf5.py ./ICLR -o ./ICLR/iclr_real_data.hdf5 # replace ./ICLR with your actual downloaded data folder
+```
+
+Unlike LIBERO, the metadata for real data is already available under [config/data_config_real](config/data_config_real).
+
+To set the data configuration for the real data, change `/data/tientoan/ICL_Franka` to your real data folder in [config/dataset_config_real_visual_trace.json](config/dataset_config_real_visual_trace.json).
+
+### 🚀 Training
+Refer to [train_iclr_real.sh](train_iclr_real.sh) for training on the real dataset. The training script is similar to that of LIBERO training.
+
+### 🎯 Inference
+Refer to the notebook at [notebooks/inference_iclr_real.ipynb](notebooks/inference_iclr_real.ipynb).
 
 
 ## 📖 Citation
