@@ -1,0 +1,27 @@
+{
+  "ratios": {
+    "pick_n_place": 1.0,
+    "poke": 1.0
+  },
+  "tasks": {
+    "pick_n_place": [
+      "corn_red_box",
+      "dumpling_blue_bowl",
+      "eggplant_red_box",
+      "elephant_grey_bowl",
+      "hedgehog_blue_bowl",
+      "hippo_blue_bowl",
+      "jaguar_red_box",
+      "tiger_grey_bowl",
+      "tomato_blue_bowl",
+      "zebra_grey_bowl"
+    ],
+    "poke": [
+      "poke_eggplant",
+      "poke_elephant",
+      "poke_hedgehog",
+      "poke_tiger",
+      "poke_tomato"
+    ]
+  }
+}

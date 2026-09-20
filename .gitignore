@@ -166,3 +166,4 @@ wandb/
 config/data_config_libero
 vision_encoder/
 rollout_videos/
+.vscode/
