@@ -1,8 +1,17 @@
+<div align="center">
+
 # ICLR: In-Context Imitation Learning with Visual Reasoning
 
-[[Website]](https://toannguyen1904.github.io/ICLR/) [[Paper]](https://arxiv.org/abs/2603.07530)
+<img src="assets/iros2026.png" alt="IROS 2026 — Pittsburgh" width="260">
 
-This repo contains the implementation for *ICLR: In-Context Imitation Learning with Visual Reasoning*, which is accepted to the IROS 2026 conference.
+**Accepted at IROS 2026 — Pittsburgh, USA**
+
+[![Website](https://img.shields.io/badge/Project-Website-1f6feb?style=for-the-badge&logo=githubpages&logoColor=white)](https://toannguyen1904.github.io/ICLR/)
+[![Paper](https://img.shields.io/badge/arXiv-2603.07530-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2603.07530)
+
+</div>
+
+This repo contains the official implementation of ***ICLR: In-Context Imitation Learning with Visual Reasoning***, accepted to the IROS 2026 conference.
 
 <p align="center">
   <img src="assets/ICLR.png" alt="ICLR overview" width="90%">
