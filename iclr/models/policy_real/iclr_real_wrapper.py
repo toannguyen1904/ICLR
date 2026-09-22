@@ -11,7 +11,7 @@ import PIL
 
 from iclr.util.args import ExperimentConfig
 import iclr.util.misc as misc
-from iclr.util.model_constructor_real import model_constructor_visual_trace_mma
+from iclr.util.model_constructor_real import model_constructor_real_visual_trace
 from iclr.data.utils import rot_6d_to_euler, quat_to_rot_6d, euler_to_rot_6d
 from iclr.data.utils import convert_delta_action
 
@@ -61,7 +61,7 @@ class ICLRRealWrapper(nn.Module):
         else:
             print("Vision encoder is loaded from the model checkpoint! ")
 
-        model = model_constructor_visual_trace_mma(
+        model = model_constructor_real_visual_trace(
             model_config=args.model_cfg, 
             shared_config=args.shared_cfg,
             train=False,
@@ -243,7 +243,7 @@ class ICLRRealWrapper(nn.Module):
             visual_trace (np.ndarray): visual trace
             action (np.ndarray): action information
         """ 
-        obs = self.prepare_observations(side_image, wrist_image, proprio, action)   # first important function
+        obs = self.prepare_observations(side_image, wrist_image, proprio, visual_trace, action)   # first important function
         for k, v in obs.items():
             if v is not None:
                 obs[k] = v.to(self.device, non_blocking=True)
